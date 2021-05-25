@@ -1,51 +1,61 @@
 import pandas as pd
 import streamlit as st
-import geopandas
-import plotly.graph_objs as go
-from utils import prepare_dataset
+import geopandas as gpd
+# import plotly.graph_objs as go
+import plotly.express as px
+import numpy as np
+from utils import prepare_dataset, open_file
 
-gj_file = open('data/arbeiterzeitung_1915.geojson')
-az_1915_places = geopandas.read_file(gj_file)
+mapbox_token = '.mapbox_token'
+px.set_mapbox_access_token(open(mapbox_token).read())
+# gj_file = open('data/arbeiterzeitung_1915.geojson')
+# with open('data/arbeiter_zeitung_1915_enriched.csv') as f:
 
+# gj_file =
+# az_1915_places = geopandas.read_file(gj_file)
+# az_1915_places = gpd.read_file('data/arbeiter_zeitung_1915_enriched.csv')
+# az_1915_places = pd.read_csv('data/arbeiter_zeitung_1915_enriched.csv')
+geo_df = open_file('data/arbeiter_zeitung_1915_enriched.csv')
 ## Preparing the data
-lat_lon_df = prepare_dataset(az_1915_places)
+geo_df = prepare_dataset(geo_df)
 
-entry_slider = st.slider('Entry slider', 0, len(lat_lon_df))
-# with entry_slider as s:
-filtered_df = lat_lon_df.iloc[:entry_slider]
+## Sidebar Layout
+st.sidebar.title('DHH21 Space Wars')
+st.sidebar.markdown('Prototype map: Named Entities from the **1915** issues of the **Arbeiter-Zeitung**')
+# st.sidebar.text('The textual information can be shown here.')
 
-st.write(filtered_df)
 
 
-# az_1915_places.set_crs('EPSG:4326')
+entry_slider = st.sidebar.slider('Number of entities selected', 100, len(geo_df))
+filtered_df = geo_df.iloc[:entry_slider]
 
-## Preparing the data
-# lat_lon_dict1 = {point.y: point.x for point in az_1915_places.geometry[:100].centroid if point is not None}
-# lat_lon_dict2 = {point.y: point.x for point in az_1915_places.geometry[101:200].centroid if point is not None}
-# lat_lon_df = pd.DataFrame(lat_lon_dict1.items(), columns=['lat', 'lon'])
+start_date = st.sidebar.date_input('Start date', geo_df['date'].iloc[0],
+                           min_value = geo_df['date'].iloc[0],
+                           max_value = geo_df['date'].iloc[-1])
 
-## Layout
-# st.set_page_config(layout='wide')
-st.title('DHH21 Space Wars')
-st.markdown('Prototype map: Named Entities from the **1915** issues of the **Arbeiter-Zeitung**')
-st.sidebar.text('The textual information can be shown here.')
-# st.map(lat_lon_df)
+end_date = st.sidebar.date_input('End date', geo_df['date'].iloc[-1],
+                           min_value = geo_df['date'].iloc[0],
+                           max_value = geo_df['date'].iloc[-1])
 
-mapbox_token = 'mapbox token'
+filtered_df = filtered_df[
+    (filtered_df['date'] >= np.datetime64(start_date))
+    & (filtered_df['date'] <= np.datetime64(end_date))
+]
+# print(len(fi))
+
 
 ##  Plotting
-scatter_map = go.Scattermapbox(lat=filtered_df['lat'], lon=filtered_df['long'], below='False',
-                               marker=dict(size=12, color='rgb(56, 44, 100)'))
-# scatter_map = go.Scattermapbox(lat=list(lat_lon_dict1.keys()), lon=list(lat_lon_dict1.values()), below='False',
-#                                marker=dict(size=12, color='rgb(56, 44, 100)'))
-# scatter_map2 = go.Scattermapbox(lat=list(lat_lon_dict2.keys()), lon=list(lat_lon_dict2.values()), below='False',
-#                                 marker=dict(size=12, color='rgb(56, 44, 100)'))
-layout = go.Layout(width=1000, height=700,
-                   mapbox=dict(center=dict(lat=49, lon=16), accesstoken=mapbox_token, zoom=3, style="stamen-terrain"))
-# layer_selector = st.multiselect('Layer Selection', [scatter_map, scatter_map2],
-#                                 format_func=lambda x: 'first 100 places' if x == scatter_map else 'second 100 places')
-layer_selector = [scatter_map]
-fig = go.Figure(data=layer_selector, layout=layout)
+fig = px.scatter_mapbox(filtered_df, lat='lat', lon='lon', #data and col. to use for plotting
+                        # hover_data = ['mention'],
+                        labels = 'mention',
+                        size = 'freq', # sets the size of each points on the values in the frequencies col.
+                        # title = ''
+                        mapbox_style = 'carto-positron', # mapstyle used
+                        center = dict(lat=49, lon=16), #centers the map on specific coordinates
+                        zoom = 3, # zooms on these coordinates
+                        width=1000, height=700, # width and height of the plot
+                        )
+
 st.plotly_chart(fig)
 
 
