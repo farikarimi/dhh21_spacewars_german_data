@@ -5,6 +5,7 @@ import geopandas as gpd
 import plotly.express as px
 import numpy as np
 from shapely import wkt
+import contextily as ctx
 
 @st.cache
 def prepare_dataset(geodf):
@@ -40,8 +41,8 @@ def open_file(filepath):
                 geometry.append(wkt.loads(x))
             else:
                 geometry.append(None)
-
-        crs = {'init': 'epsg:2263'}  # http://www.spatialreference.org/ref/epsg/2263/
+# 2263
+        crs = {'init': 'epsg:3857'}  # http://www.spatialreference.org/ref/epsg/2263/
         geo_df = gpd.GeoDataFrame(df, crs=crs, geometry=geometry)
 
     else:
@@ -77,6 +78,10 @@ end_date = st.sidebar.date_input('End date', geo_df['date'].iloc[-1],
                            min_value = geo_df['date'].iloc[0],
                            max_value = geo_df['date'].iloc[-1])
 
+map_style = st.sidebar.selectbox('Choose a map style:',
+                                 # these a free maps that do not require a mapbox token
+                         ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain", "stamen-toner", "stamen-watercolor", 'white-bg'])
+
 filtered_df = filtered_df[
     (filtered_df['date'] >= np.datetime64(start_date))
     & (filtered_df['date'] <= np.datetime64(end_date))
@@ -88,23 +93,44 @@ filtered_df['year'] = pd.DatetimeIndex(filtered_df['date']).year
 filtered_df.loc[300: 500 , 'year'] = 1916
 filtered_df.loc[501: 800 , 'year'] = 1917
 filtered_df.loc[801:  , 'year'] = 1918
+## for some reason, the value for animation frame must be str...
 filtered_df['year'] = filtered_df['year'].astype(str)
 
 # print(filtered_df['year'])
 ##  Plotting
 fig = px.scatter_mapbox(filtered_df, lat='lat', lon='lon', #data and col. to use for plotting
+                        hover_name = 'mention',
+                        hover_data = ['freq', 'type', 'link'],
                         # hover_data = ['mention'],
                         # labels = 'mention',
                         size = 'freq', # sets the size of each points on the values in the frequencies col.
                         # title = ''
                         animation_frame = 'year',
-                        mapbox_style = 'carto-positron', # mapstyle used
+                        # mapbox_style = map_style, # mapstyle used
                         center = dict(lat=49, lon=16), #centers the map on specific coordinates
                         zoom = 3, # zooms on these coordinates
                         width=1000, height=700, # width and height of the plot
                         )
+# if we want to use other map style that are not provided by Mapbox or Plotly,
+# we need to specify the path ourselves. It has to be done by updating the layout apparently
+# https://holypython.com/how-to-create-map-charts-in-python-w-plotly-mapbox/
+fig.update_layout(
+    mapbox_style = map_style,
+    mapbox_layers=[
+        {
+            "below": 'traces',
+            "sourcetype": "raster",
+            "source": [
+                # "https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"
+                "https://tile.opentopomap.org/{z}/{x}/{y}.png"
+                # "http://tile.stamen.com/terrain/{z}/{y}/{x}.png"
+            ]
+        }
+      ])
 
 st.plotly_chart(fig)
+
+st.write(filtered_df)
 # #
 # fig2 = px.scatter_geo(
 #     filtered_df, lat='lat', lon='lon',
