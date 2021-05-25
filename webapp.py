@@ -4,18 +4,58 @@ import geopandas as gpd
 # import plotly.graph_objs as go
 import plotly.express as px
 import numpy as np
-from utils import prepare_dataset, open_file
+from shapely import wkt
+
+# from utils import prepare_dataset, open_file
+
+@st.cache
+def prepare_dataset(geodf):
+    """
+
+    """
+    geodf = geodf.dropna()
+    list_lat, list_long = [], []
+    for point in geodf['geometry']:
+        lat = point.centroid.y
+        long = point.centroid.x
+        list_lat.append(lat)
+        list_long.append(long)
+    geodf['lat'] = list_lat
+    geodf['lon'] = list_long
+    return geodf
+
+@st.cache
+def open_file(filepath):
+    """
+
+    """
+    if filepath.endswith('csv'):
+        df = pd.read_csv(filepath)
+        df['date'] = pd.to_datetime(df['date'])
+
+        geometry = []
+        for x in df['geometry']:
+            if isinstance(x, str):
+                geometry.append(wkt.loads(x))
+            else:
+                geometry.append(None)
+
+        crs = {'init': 'epsg:2263'}  # http://www.spatialreference.org/ref/epsg/2263/
+        geo_df = gpd.GeoDataFrame(df, crs=crs, geometry=geometry)
+
+    else:
+        geo_df = gpd.read_file(filepath)
+
+    return geo_df
 
 mapbox_token = '.mapbox_token'
 px.set_mapbox_access_token(open(mapbox_token).read())
 # gj_file = open('data/arbeiterzeitung_1915.geojson')
-# with open('data/arbeiter_zeitung_1915_enriched.csv') as f:
 
-# gj_file =
+
 # az_1915_places = geopandas.read_file(gj_file)
-# az_1915_places = gpd.read_file('data/arbeiter_zeitung_1915_enriched.csv')
-# az_1915_places = pd.read_csv('data/arbeiter_zeitung_1915_enriched.csv')
 geo_df = open_file('data/arbeiter_zeitung_1915_enriched.csv')
+
 ## Preparing the data
 geo_df = prepare_dataset(geo_df)
 
