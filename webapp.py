@@ -6,12 +6,11 @@ import plotly.express as px
 import numpy as np
 from shapely import wkt
 
-# from utils import prepare_dataset, open_file
-
 @st.cache
 def prepare_dataset(geodf):
     """
-
+    Adds a lat and a lon column to the GeoDF to be used
+    with the mapping
     """
     geodf = geodf.dropna()
     list_lat, list_long = [], []
@@ -27,7 +26,9 @@ def prepare_dataset(geodf):
 @st.cache
 def open_file(filepath):
     """
-
+    If filepath direct ot GeoJSON file, just opens and reads it
+    If its a CSV file, opens it and converts it to GeoJSON. The CSV
+    needs to have a least a geometry column with Point(x,y) as values
     """
     if filepath.endswith('csv'):
         df = pd.read_csv(filepath)
@@ -65,8 +66,7 @@ st.sidebar.markdown('Prototype map: Named Entities from the **1915** issues of t
 # st.sidebar.text('The textual information can be shown here.')
 
 
-
-entry_slider = st.sidebar.slider('Number of entities selected', 100, len(geo_df))
+entry_slider = st.sidebar.slider('Number of entities selected', 0, len(geo_df), 2000)
 filtered_df = geo_df.iloc[:entry_slider]
 
 start_date = st.sidebar.date_input('Start date', geo_df['date'].iloc[0],
@@ -81,15 +81,23 @@ filtered_df = filtered_df[
     (filtered_df['date'] >= np.datetime64(start_date))
     & (filtered_df['date'] <= np.datetime64(end_date))
 ]
-# print(len(fi))
+# print(px.data.gapminder()['year'])
+filtered_df['year'] = pd.DatetimeIndex(filtered_df['date']).year
 
+## THIS IS DUMMY DATA TO TEST ANIMATION YEAR OPTION
+filtered_df.loc[300: 500 , 'year'] = 1916
+filtered_df.loc[501: 800 , 'year'] = 1917
+filtered_df.loc[801:  , 'year'] = 1918
+filtered_df['year'] = filtered_df['year'].astype(str)
 
+# print(filtered_df['year'])
 ##  Plotting
 fig = px.scatter_mapbox(filtered_df, lat='lat', lon='lon', #data and col. to use for plotting
                         # hover_data = ['mention'],
-                        labels = 'mention',
+                        # labels = 'mention',
                         size = 'freq', # sets the size of each points on the values in the frequencies col.
                         # title = ''
+                        animation_frame = 'year',
                         mapbox_style = 'carto-positron', # mapstyle used
                         center = dict(lat=49, lon=16), #centers the map on specific coordinates
                         zoom = 3, # zooms on these coordinates
@@ -97,7 +105,12 @@ fig = px.scatter_mapbox(filtered_df, lat='lat', lon='lon', #data and col. to use
                         )
 
 st.plotly_chart(fig)
-
+# #
+# fig2 = px.scatter_geo(
+#     filtered_df, lat='lat', lon='lon',
+#     animation_frame = 'year', projection='natural earth'
+# )
+# st.plotly_chart(fig2)
 
 # further useful methods:
 # st.header(body, anchor=None)
