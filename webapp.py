@@ -7,6 +7,8 @@ import numpy as np
 from shapely import wkt
 import contextily as ctx
 
+epsg = 4326
+
 @st.cache
 def prepare_dataset(geodf):
     """
@@ -33,22 +35,62 @@ def open_file(filepath):
     """
     if filepath.endswith('csv'):
         df = pd.read_csv(filepath)
+        for col in df.columns:
+            if col.startswith('Unnamed'):
+                del df[col]
         df['date'] = pd.to_datetime(df['date'])
 
-        geometry = []
-        for x in df['geometry']:
-            if isinstance(x, str):
-                geometry.append(wkt.loads(x))
-            else:
-                geometry.append(None)
-# 2263
-        crs = {'init': 'epsg:4326'}  # http://www.spatialreference.org/ref/epsg/2263/
-        geo_df = gpd.GeoDataFrame(df, crs=crs, geometry=geometry)
+        # geometry = []
+        # for x in df['geometry']:
+        #     if isinstance(x, str):
+        #         geometry.append(wkt.loads(x))
+        #     else:
+        #         geometry.append(None)
+        # 2263
+        # crs = {'init': f'epsg:{epsg}'}  # http://www.spatialreference.org/ref/epsg/2263/
+        # geo_df = gpd.GeoDataFrame(df, crs=crs, geometry=geometry)
+        crs = {'init': f'epsg:{epsg}'}  # http://www.spatialreference.org/ref/epsg/2263/
+        geo_df = gpd.GeoDataFrame(df, crs=crs)
 
     else:
         geo_df = gpd.read_file(filepath)
-        geo_df.set_crs(epsg=4326)
+        geo_df.set_crs(epsg=epsg)
 
+    return geo_df
+
+@st.cache
+def open_battle_file(filepath):
+    """
+    Specific function to open DataFrame containing battle related data
+    """
+    df = pd.read_csv(filepath)
+    for col in df.columns:
+        if col.startswith('Unnamed'):
+            del df[col]
+    df['displaydate'] = pd.to_datetime(df['displaydate'])
+    df['displaystart'] = pd.to_datetime(df['displaystart'])
+    df['displayend'] = pd.to_datetime(df['displayend'])
+
+    df['coordinates'] = df['coordinates'].str.replace('\(\(', '(')
+    df['coordinates'] = df['coordinates'].str.replace('\)\)', ')')
+
+    ## "entity" in the URL is automatically converted to "wiki" when searching the URL in a browser
+    ## like in the wikidata links from NewsEye
+    ## I'll just change the URL so they can both match
+    df['subject'] = df['subject'].str.replace('entity', 'wiki')
+    df['location'] = df['location'].str.replace('entity', 'wiki')
+    df['is_in_radius'] = False
+
+    geometry = []
+    for x in df['coordinates']:
+        if isinstance(x, str):
+            geometry.append(wkt.loads(x))
+        else:
+            geometry.append(None)
+    # 2263
+    crs = {'init': f'epsg:{epsg}'}  # http://www.spatialreference.org/ref/epsg/2263/
+    geo_df = gpd.GeoDataFrame(df, crs=crs, geometry=geometry)
+    del geo_df['coordinates']
     return geo_df
 
 mapbox_token = '.mapbox_token'
@@ -57,11 +99,13 @@ px.set_mapbox_access_token(open(mapbox_token).read())
 
 
 # az_1915_places = geopandas.read_file(gj_file)
-geo_df = open_file('data/arbeiter_zeitung_1915_enriched.csv')
-## Preparing the data
-geo_df = prepare_dataset(geo_df)
+# geo_df = open_file('data/arbeiter_zeitung_1915_enriched.csv')
+geo_df = open_file('data/pandas_az_1915.csv')
 
-geoborders = open_file('data/borders_1914/borders1914.json')
+## Preparing the data
+# geo_df = prepare_dataset(geo_df)
+
+# geoborders = open_file('data/borders_1914/borders1914.json')
 
 
 
@@ -114,6 +158,9 @@ filtered_df['year'] = pd.DatetimeIndex(filtered_df['date']).year
 ## for some reason, the value for animation frame must be str...
 filtered_df['year'] = filtered_df['year'].astype(str)
 
+## calculating frequency on the fly
+
+
 # print(filtered_df['year'])
 ##  Plotting
 fig = px.scatter_mapbox(filtered_df, lat='lat', lon='lon', #data and col. to use for plotting
@@ -150,20 +197,20 @@ st.plotly_chart(fig)
 
 # st.write(filtered_df)
 # #
-print(geoborders)
-
-fig2 = px.scatter_geo(
-    filtered_df, lat='lat', lon='lon',
-    # geojson = geoborders.geometry,
-    # featureidkey = "AREA",
-    animation_frame = 'year',
-    projection='natural earth',
-    # projection = 'mercator',
-    width=1000, height=700,  # width and height of the plot
-
-)
-fig2.update_geos(fitbounds="locations", visible=True)
-st.plotly_chart(fig2)
+# print(geoborders)
+#
+# fig2 = px.scatter_geo(
+#     filtered_df, lat='lat', lon='lon',
+#     # geojson = geoborders.geometry,
+#     # featureidkey = "AREA",
+#     animation_frame = 'year',
+#     projection='natural earth',
+#     # projection = 'mercator',
+#     width=1000, height=700,  # width and height of the plot
+#
+# )
+# fig2.update_geos(fitbounds="locations", visible=True)
+# st.plotly_chart(fig2)
 
 # further useful methods:
 # st.header(body, anchor=None)
