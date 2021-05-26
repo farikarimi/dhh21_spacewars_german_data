@@ -4,9 +4,11 @@ import math
 import json
 from shapely import wkt
 from timeit import default_timer as timer
+import pandas as pd
 
 # TODO: change data path
-DATA_PATH = '/Volumes/Untitled/DHH21/export_hackathon/1915/arbeiter_zeitung'
+# DATA_PATH = '/Volumes/Untitled/DHH21/export_hackathon/1915/arbeiter_zeitung'
+DATA_PATH = 'arbeiter_zeitung'
 # header of Oleg's enriched csv file:  ,id,link,type,mention,start_idx,end_idx,stance,date,address,freq,geometry
 
 
@@ -50,10 +52,10 @@ def combine_csv_and_json(dict_dict):
                 'start_idx': row[5],
                 'end_idx': row[6],
                 # TODO: add right and left context text (solve problem with special characters)
-                'left_context': 'left_context_placeholder',
-                # 'left_context': get_context(dict_dict[row[1]]['fulltext'], row[5], row[6])[0],
-                'right_context': 'right_context_placeholder',
-                # 'right_context': get_context(dict_dict[row[1]]['fulltext'], row[5], row[6])[1],
+#                 'left_context': 'left_context_placeholder',
+                'left_context': get_context(dict_dict[row[1]]['fulltext'], row[5], row[6])[0],
+#                 'right_context': 'right_context_placeholder',
+                'right_context': get_context(dict_dict[row[1]]['fulltext'], row[5], row[6])[1],
                 'article_id': dict_dict[row[1]]['article_id'],
                 'issue_id': dict_dict[row[1]]['issue_id'],
                 'date': row[8],
@@ -80,7 +82,12 @@ def write_csv(path, dict_list):
 if __name__ == '__main__':
     print('running assembling_data.py...')
     start = timer()
-    write_csv('data/test_1915_az.csv', combine_csv_and_json(get_missing_info()))
+    missing_info = get_missing_info()
+    combined_data = combine_csv_and_json(missing_info)
+    df = pd.DataFrame.from_dict(combined_data)
+    savepath = 'data/pandas_az_1915.csv'
+    df.to_csv(savepath)
+#     write_csv('data/test_1915_az.csv', combine_csv_and_json(get_missing_info()))
     end = timer()
     print('time elapsed:', math.ceil((end - start) / 60), 'minutes')
 
