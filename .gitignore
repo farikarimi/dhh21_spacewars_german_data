@@ -1,3 +1,7 @@
 venv/
 .idea/
 .DS_Store
+.ipynb_checkpoints/
+__pycache__/
+data/.ipynb_checkpoints/
+data/pandas_az_1915.csv

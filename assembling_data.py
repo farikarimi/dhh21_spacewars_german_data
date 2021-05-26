@@ -62,6 +62,7 @@ def combine_csv_and_json(dict_dict):
                 'lang': dict_dict[row[1]]['lang'],
                 'wikidata_link': row[2],
                 'address': row[9],
+                "geometry": row[11],
                 'lat': get_coordinates(row[11])[0] if get_coordinates(row[11]) else '',
                 'lon': get_coordinates(row[11])[1] if get_coordinates(row[11]) else ''
             }
