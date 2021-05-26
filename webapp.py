@@ -42,11 +42,12 @@ def open_file(filepath):
             else:
                 geometry.append(None)
 # 2263
-        crs = {'init': 'epsg:3857'}  # http://www.spatialreference.org/ref/epsg/2263/
+        crs = {'init': 'epsg:4326'}  # http://www.spatialreference.org/ref/epsg/2263/
         geo_df = gpd.GeoDataFrame(df, crs=crs, geometry=geometry)
 
     else:
         geo_df = gpd.read_file(filepath)
+        geo_df.set_crs(epsg=4326)
 
     return geo_df
 
@@ -57,10 +58,12 @@ px.set_mapbox_access_token(open(mapbox_token).read())
 
 # az_1915_places = geopandas.read_file(gj_file)
 geo_df = open_file('data/arbeiter_zeitung_1915_enriched.csv')
-geoborders = open_file('data/borders_1914/borders1914.json')
-
 ## Preparing the data
 geo_df = prepare_dataset(geo_df)
+
+geoborders = open_file('data/borders_1914/borders1914.json')
+
+
 
 ## Sidebar Layout
 st.sidebar.title('DHH21 Space Wars')
