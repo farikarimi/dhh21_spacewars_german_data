@@ -57,6 +57,7 @@ px.set_mapbox_access_token(open(mapbox_token).read())
 
 # az_1915_places = geopandas.read_file(gj_file)
 geo_df = open_file('data/arbeiter_zeitung_1915_enriched.csv')
+geoborders = open_file('data/borders_1914/borders1914.json')
 
 ## Preparing the data
 geo_df = prepare_dataset(geo_df)
@@ -65,6 +66,18 @@ geo_df = prepare_dataset(geo_df)
 st.sidebar.title('DHH21 Space Wars')
 st.sidebar.markdown('Prototype map: Named Entities from the **1915** issues of the **Arbeiter-Zeitung**')
 # st.sidebar.text('The textual information can be shown here.')
+
+lg_select = st.sidebar.selectbox('Choose a language:',
+                                 ['fr', 'en', 'de', 'fi'])
+
+## TODO: Make sure that if we select fr, only the French newspapers appear, and vice-versa
+newspapers_select = st.sidebar.selectbox('Choose a newspapers:',
+                                         ['XXX', 'XXX'])
+
+
+## TODO: Make sure that if we select fr, only the French newspapers appear, and vice-versa
+entity_select = st.sidebar.selectbox('Choose a location:',
+                                         ['XXX', 'XXX'])
 
 
 entry_slider = st.sidebar.slider('Number of entities selected', 0, len(geo_df), 2000)
@@ -82,6 +95,7 @@ map_style = st.sidebar.selectbox('Choose a map style:',
                                  # these a free maps that do not require a mapbox token
                          ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain", "stamen-toner", "stamen-watercolor", 'white-bg'])
 
+
 filtered_df = filtered_df[
     (filtered_df['date'] >= np.datetime64(start_date))
     & (filtered_df['date'] <= np.datetime64(end_date))
@@ -89,10 +103,11 @@ filtered_df = filtered_df[
 # print(px.data.gapminder()['year'])
 filtered_df['year'] = pd.DatetimeIndex(filtered_df['date']).year
 
+
 ## THIS IS DUMMY DATA TO TEST ANIMATION YEAR OPTION
-filtered_df.loc[300: 500 , 'year'] = 1916
-filtered_df.loc[501: 800 , 'year'] = 1917
-filtered_df.loc[801:  , 'year'] = 1918
+# filtered_df.loc[300: 500 , 'year'] = 1916
+# filtered_df.loc[501: 800 , 'year'] = 1917
+# filtered_df.loc[801:  , 'year'] = 1918
 ## for some reason, the value for animation frame must be str...
 filtered_df['year'] = filtered_df['year'].astype(str)
 
@@ -130,13 +145,22 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
-st.write(filtered_df)
+# st.write(filtered_df)
 # #
-# fig2 = px.scatter_geo(
-#     filtered_df, lat='lat', lon='lon',
-#     animation_frame = 'year', projection='natural earth'
-# )
-# st.plotly_chart(fig2)
+print(geoborders)
+
+fig2 = px.scatter_geo(
+    filtered_df, lat='lat', lon='lon',
+    # geojson = geoborders.geometry,
+    # featureidkey = "AREA",
+    animation_frame = 'year',
+    projection='natural earth',
+    # projection = 'mercator',
+    width=1000, height=700,  # width and height of the plot
+
+)
+fig2.update_geos(fitbounds="locations", visible=True)
+st.plotly_chart(fig2)
 
 # further useful methods:
 # st.header(body, anchor=None)
