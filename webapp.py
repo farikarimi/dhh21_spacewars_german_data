@@ -8,6 +8,7 @@ from shapely import wkt
 import contextily as ctx
 epsg = 4326
 
+
 @st.cache(allow_output_mutation=True)
 def prepare_dataset(geodf):
     """
@@ -103,15 +104,34 @@ def open_battle_file(filepath):
 
 mapbox_token = '.mapbox_token'
 px.set_mapbox_access_token(open(mapbox_token).read())
-# gj_file = open('data/arbeiterzeitung_1915.geojson')
 
 
-# az_1915_places = geopandas.read_file(gj_file)
-# geo_df = open_file('data/arbeiter_zeitung_1915_enriched.csv')
 geo_df = open_file('data/combined_data_arbeiter_zeitung_1915.csv')
+
+def get_battle_hover_text(battles):
+    """
+    Prepare column of text for hover
+    """
+ #   subject, label, coordinates, LOClabel, location, country, displaydate, displaystart, displayend, Duration, Notes
+    list_hover = []
+    for index, line in battles.iterrows():
+        # print(line)
+        label = line['label']
+        start, end = line['displaystart'], line['displayend']
+        duration = line['Duration']
+        front = line['Notes']
+        # print(line['label'])
+        txt = f"{label}<br>{start} - {end}<br>Duration (days): {duration}<br>Warfront : {front}"
+        list_hover.append(txt)
+    battles['txthover'] = list_hover
+    return battles
+
+
+
 battles = open_battle_file('data/Wikibattles.csv')
 battles = prepare_dataset(battles)
-# print(geo_df)
+battles = get_battle_hover_text(battles)
+
 ## Preparing the data
 # geo_df = prepare_dataset(geo_df)
 
@@ -172,6 +192,32 @@ filtered_df = filtered_df[
     & (filtered_df['freq'] <= freq_slider[1])
 ]
 
+duration_slider = st.sidebar.slider('Battle duration:',
+                                    int(filtered_battles['Duration'].min()),
+                                    int(filtered_battles['Duration'].max()),
+                                    (
+                                        int(filtered_battles['Duration'].min()),
+                                        int(filtered_battles['Duration'].max()),
+
+                                    )
+
+                                    )
+
+filtered_battles = filtered_battles[
+    (filtered_battles['Duration'] >= duration_slider[0])
+    & (filtered_battles['Duration'] <= duration_slider[1])
+
+]
+
+front_selection = st.sidebar.multiselect('Select battle front(s):',
+                                         filtered_battles['Notes'].unique().tolist(),
+                                         filtered_battles['Notes'].unique().tolist(),
+
+                                         )
+
+filtered_battles = filtered_battles[filtered_battles['Notes'].isin(front_selection)]
+
+
 groupby_data = filtered_df.groupby('geometry')
 map_df = groupby_data.first()
 
@@ -198,21 +244,26 @@ fig.add_trace(go.Scattermapbox(
         lat=filtered_battles['lat'],
         lon=filtered_battles['lon'],
         mode='markers',
-        hovertemplate= 'Name %{LOClabel}'
+        # hovertemplate= 'Name %{LOClabel}',
+        # fillcolor = 'duration',
         # hoverinfo = 'all',
         # hoverinfosrc = ['all']
-        # hovertext = filtered_battles['LOClabel']
-        # marker=go.scattermapbox.Marker(
-        #     size=17,
-        #     color='rgb(255, 0, 0)',
-        #     opacity=0.7
-        # ),
+        hovertext = filtered_battles['txthover'],
+        marker=go.scattermapbox.Marker(
+            size=10,
+            # color='rgb(255, 0, 0)',
+            color= filtered_battles['Duration'],
+            showscale = True,
+            colorscale='Blackbody',
+            opacity=0.7
+        ),
         # text=locations_name,
         # hoverinfo='text'
     ))# if we want to use other map style that are not provided by Mapbox or Plotly,
 # we need to specify the path ourselves. It has to be done by updating the layout apparently
 # https://holypython.com/how-to-create-map-charts-in-python-w-plotly-mapbox/
-# fig.update_layout(
+fig.update_layout(
+    margin = dict(l=0)
 #     mapbox_style = map_style,
 #     mapbox_layers=[
 #         {
@@ -224,19 +275,54 @@ fig.add_trace(go.Scattermapbox(
 #                 # "http://tile.stamen.com/terrain/{z}/{y}/{x}.png"
 #             ]
 #         }
-#       ])
+#       ]
+)
 
-col1,col2 = st.beta_columns(2)
+# col1,col2 = st.beta_columns(2)
 
 st.plotly_chart(fig)
 
 page_slider = st.slider(
     'Select entities mention',
-    0, len(geo_df), 50
+    0, len(filtered_df), 50
 )
 # mention_id,mention,start_idx,end_idx,left_context,right_context,article_id,issue_id,article_link,newspaper,date,lang,wikidata_link,address,geometry,lat,lon
 df_page = filtered_df.iloc[page_slider:page_slider + 50]
-st.write(df_page[['newspaper', 'date', 'left_context', 'mention', 'right_context', 'article_link','wikidata_link',]])
+df_page = df_page[['newspaper', 'date', 'left_context', 'mention', 'right_context', 'article_link','wikidata_link']]
+
+df_page = df_page.fillna('No Data Available')
+header_values = df_page.columns
+cell_values = [df_page['newspaper'], df_page['date'], df_page['left_context'], df_page['mention'],
+                          df_page['right_context'], df_page['article_link'],df_page['wikidata_link']]
+table = go.Figure(
+    data=[
+        go.Table(
+            columnwidth=[100, 100, 100] ,
+            header = dict(
+                values= df_page.columns,
+                # fill_color="paleturquoise",
+                align="left",
+                font=dict(color='black')
+            ),
+            cells = dict(
+                values = cell_values,
+                font=dict(color='black'),
+                align="left"
+            )
+        )
+    ],
+    # layout = dict(autosize=True)
+)
+# table.update_layout(
+#     autosize=False,
+#     width=1100,
+#     height=1000,
+#     margin=dict(l=0),
+#
+# )
+
+st.plotly_chart(table)
+# st.plotly_chart(df_page.to_dict('records'))r
 # #
 # print(geoborders)
 #
