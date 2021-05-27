@@ -24,3 +24,4 @@ Wikipedia-API==0.5.4
 streamlit~=0.82.0
 geopandas~=0.9.0
 plotly~=4.14.3
+Shapely~=1.7.1
