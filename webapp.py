@@ -149,6 +149,8 @@ dic_lg = {
     "Finnish": 'fi',
     "French": 'fr'
 }
+
+
 print(dic_lg.keys())
 lg_select = st.sidebar.multiselect('Select language(s):',
                                    # ['de', 'fi', 'fr'],
