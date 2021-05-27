@@ -7,6 +7,9 @@ import numpy as np
 from shapely import wkt
 import contextily as ctx
 from glob import glob
+from datetime import datetime
+import dash_bootstrap_components as dbc
+import dash_html_components as html
 
 epsg = 4326
 
@@ -139,10 +142,8 @@ all_files = glob('data/combined_data_csvs/**/*.csv', recursive=True)
 ## Preparing the data
 # geo_df = prepare_dataset(geo_df)
 
-## Sidebar Layout
-st.sidebar.title('DHH21 Space Wars')
-st.sidebar.markdown('Prototype map: Named Entities from the **1915** issues of the **Arbeiter-Zeitung**')
-# st.sidebar.text('The textual information can be shown here.')
+## Layout
+st.title('DHH21 Space Wars')
 
 dic_lg = {
     "German": 'de',
@@ -152,7 +153,7 @@ dic_lg = {
 
 
 print(dic_lg.keys())
-lg_select = st.sidebar.multiselect('Select language(s):',
+lg_select = st.multiselect('Select language(s):',
                                    # ['de', 'fi', 'fr'],
                                    #  ['de', 'fi', 'fr']
                                     list(dic_lg.keys()),
@@ -170,15 +171,16 @@ dic_news = {
     "Neue Freie Presse": 'neue_freie_presse'
 }
 ## TODO: Make sure that if we select fr, only the French newspapers appear, and vice-versa
-newspapers_select = st.sidebar.multiselect('Select newspaper(s):',
+newspapers_select = st.multiselect('Select newspaper(s):',
                                          # ['arbeiter_zeitung', 'helsingin_sanomat', 'illustrierte_kronen_zeitung', 'le_matin', 'l_oeuvre', 'neue_freie_presse'],
                                          # ['arbeiter_zeitung', 'helsingin_sanomat', 'le_matin', ],
                                            list(dic_news.keys()),
-                                           list(dic_news.keys())
+                                           ['Arbeiter Zeitung', 'Helsingin Sanomat', 'Le Matin']
+                                           # list(dic_news.keys())
 
                                          )
 
-year_select = st.sidebar.multiselect('Select year(s):',
+year_select = st.multiselect('Select year(s):',
                                          ['1913', '1914', '1915', '1916', '1917', '1918', '1919', '1920'],
                                          ['1914', '1915', '1916', '1917', '1918'],
 
@@ -215,15 +217,15 @@ for file in filtered_files:
 geo_df = pd.concat(l_df).reset_index()
 
 
-start_date = st.sidebar.date_input('Start date', geo_df['date'].iloc[0],
+start_date = st.date_input('Start date', geo_df['date'].iloc[0],
                            min_value = geo_df['date'].iloc[0],
                            max_value = geo_df['date'].iloc[-1])
 
-end_date = st.sidebar.date_input('End date', geo_df['date'].iloc[-1],
+end_date = st.date_input('End date', geo_df['date'].iloc[-1],
                            min_value = geo_df['date'].iloc[0],
                            max_value = geo_df['date'].iloc[-1])
 
-# map_style = st.sidebar.selectbox('Choose a map style:',
+# map_style = st.selectbox('Choose a map style:',
 #                                  # these a free maps that do not require a mapbox token
 #                          ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain",
 #                           "stamen-toner", "stamen-watercolor", 'white-bg'])
@@ -250,10 +252,10 @@ filtered_battles = battles[
 filtered_df['freq'] = filtered_df['geometry'].map(filtered_df['geometry'].value_counts())
 
 
-min_freq = st.sidebar.text_input('Mininum entity occurrence:', 1)
-max_freq = st.sidebar.text_input('Maximum entity occurrence:', int(filtered_df['freq'].max()))
+min_freq = st.text_input('Mininum entity occurrence:', 1)
+max_freq = st.text_input('Maximum entity occurrence:', int(filtered_df['freq'].max()))
 
-# freq_slider = st.sidebar.slider('Location frequencies',
+# freq_slider = st.slider('Location frequencies',
 #                                 0, int(filtered_df['freq'].max()),
 #                                 (500, 1000)
 #                                 )
@@ -262,7 +264,7 @@ filtered_df = filtered_df[
     & (filtered_df['freq'] <= int(max_freq))
 ]
 
-duration_slider = st.sidebar.slider('Battle duration:',
+duration_slider = st.slider('Battle duration:',
                                     int(filtered_battles['Duration'].min()),
                                     int(filtered_battles['Duration'].max()),
                                     (
@@ -279,7 +281,7 @@ filtered_battles = filtered_battles[
 
 ]
 
-front_selection = st.sidebar.multiselect('Select battle front(s):',
+front_selection = st.multiselect('Select battle front(s):',
                                          filtered_battles['Notes'].unique().tolist(),
                                          filtered_battles['Notes'].unique().tolist(),
 
@@ -360,18 +362,38 @@ page_slider = st.slider(
     'Select entities mention',
     0, len(filtered_df), 50
 )
-# mention_id,mention,start_idx,end_idx,left_context,right_context,article_id,issue_id,article_link,newspaper,date,lang,wikidata_link,address,geometry,lat,lon
+
 df_page = filtered_df.iloc[page_slider:page_slider + 50]
-# df_page = df_page[['newspaper', 'date', 'lang', 'left_context', 'mention', 'right_context', 'article_link','wikidata_link']]
+
+def convert(row, col, text):
+    #print(row)
+    return '<a href="{}">{}</a>'.format(row[col],  text)
+
+df_page['article_link'] = df_page.apply(convert, args=('article_link', 'View Article'), axis=1)
+df_page['wikidata_link'] = df_page.apply(convert, args=('wikidata_link', 'View Wikidata'), axis=1)
 
 df_page = df_page.fillna('No Data Available')
+df_page = df_page[['newspaper', 'date', 'lang', 'left_context', 'mention', 'right_context',
+            'article_link', 'wikidata_link']]
+
+fmt = "%Y-%m-%d"
+# df_page = df_page.style.format(
+#     {
+#         "date": lambda t: t.strftime(fmt),
+#         # "b": lambda t: datetime.fromtimestamp(t).strftime(fmt),
+#     }
+# )
+# st.dataframe(styler)
+
 header_values = df_page.columns
 cell_values = [df_page['newspaper'], df_page['date'], df_page['lang'], df_page['left_context'], df_page['mention'],
-                          df_page['right_context'], df_page['article_link'],df_page['wikidata_link']]
+                          df_page['right_context'], df_page['article_link'], df_page['wikidata_link']]
+
+
 table = go.Figure(
     data=[
         go.Table(
-            columnwidth=[100, 100, 100] ,
+            columnwidth=[100, 100, 100, 100, 100, 100, 100, 100] ,
             header = dict(
                 values= df_page.columns,
                 # fill_color="paleturquoise",
@@ -387,43 +409,19 @@ table = go.Figure(
     ],
     # layout = dict(autosize=True)
 )
-# table.update_layout(
-#     autosize=False,
-#     width=1100,
-#     height=1000,
-#     margin=dict(l=0),
-#
-# )
+table.update_layout(
+    autosize=False,
+    width=1500,
+    height=1000,
+    margin=dict(l=0, r=0),
 
+)
+# title=['Hi Dash','Hello World']
+# link=[html.A(html.P('Link'),href="yahoo.com"),html.A(html.P('Link'),href="google.com")]
+#
+# dictionary={"title":title,"link":link}
+# df=pd.DataFrame(dictionary)
+# table=dbc.Table.from_dataframe(df, striped=True, bordered=True, hover=True)
+# table
 st.plotly_chart(table)
 # st.plotly_chart(df_page.to_dict('records'))r
-# #
-# print(geoborders)
-#
-# fig2 = px.scatter_geo(
-#     filtered_df, lat='lat', lon='lon',
-#     # geojson = geoborders.geometry,
-#     # featureidkey = "AREA",
-#     animation_frame = 'year',
-#     projection='natural earth',
-#     # projection = 'mercator',
-#     width=1000, height=700,  # width and height of the plot
-#
-# )
-# fig2.update_geos(fitbounds="locations", visible=True)
-# st.plotly_chart(fig2)
-
-# further useful methods:
-# st.header(body, anchor=None)
-# st.subheader(body, anchor=None)
-# st.text(body)
-# st.markdown(body, unsafe_allow_html=False)
-# st.code(body, language='python')
-# st.write()
-# st.dataframe(data=None, width=None, height=None) --> interactive
-# st.table(data=None) --> static
-# str.image(image, caption=None, width=None, use_column_width=None, clamp=False, channels='RGB', output_format='auto')
-# https://docs.streamlit.io/en/stable/api.html#streamlit.pydeck_chart
-# https://docs.streamlit.io/en/stable/api.html#display-interactive-widgets
-# https://docs.streamlit.io/en/stable/api.html#streamlit.map
-
