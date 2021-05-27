@@ -343,6 +343,22 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
+##################### PAGE LAYOUT #################
+def get_window(text, window, left=True):
+    """
+    """
+    if isinstance(text, str):
+        l_text = text.split()
+        if not len(l_text) < window:
+            if left:
+                l_text = l_text[-window:]
+            else:
+                l_text = l_text[:window]
+
+        return " ".join(l_text)
+    else:
+        return ""
+
 page_slider = st.slider(
     'Select entities mention',
     0, len(filtered_df), 50
@@ -360,10 +376,18 @@ def convert(row, col, text):
 
 df_page['article_link'] = df_page.apply(convert, args=('article_link', 'View Article'), axis=1)
 df_page['wikidata_link'] = df_page.apply(convert, args=('wikidata_link', 'View Wikidata'), axis=1)
-# pd.DatetimeIndex(df.Date_Col).strftime("%Y-%m-%d")
 df_page['date'] = pd.DatetimeIndex(df_page['date']).strftime("%Y-%m-%d")
+word_window = 5
+df_page['left_context'] = df_page['left_context'].apply(lambda x: get_window(x, word_window))
+df_page['right_context'] = df_page['right_context'].apply(lambda x: get_window(x, word_window, left=False))
 
-df_page = df_page.fillna('No Data Available')
+reversed_lg = {
+    'de': "German",
+    'fi': "Finnish",
+    'fr': 'French'
+}
+df_page['lang'] = df_page['lang'].apply(lambda x: reversed_lg[x])
+# df_page = df_page.fillna('No Data Available')
 df_page = df_page[['newspaper', 'date', 'lang', 'left_context', 'mention', 'right_context',
             'article_link', 'wikidata_link']]
 
