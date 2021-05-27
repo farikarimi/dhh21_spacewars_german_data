@@ -8,8 +8,6 @@ from shapely import wkt
 import contextily as ctx
 from glob import glob
 from datetime import datetime
-import dash_bootstrap_components as dbc
-import dash_html_components as html
 
 epsg = 4326
 
@@ -61,22 +59,9 @@ def open_file(filepath):
         for col in df.columns:
             if col.startswith('Unnamed'):
                 del df[col]
-        df['date'] = pd.to_datetime(df['date'])
+        df['date'] = pd.to_datetime(df['date'], format="%Y-%m-%d")
         df['year'] = pd.DatetimeIndex(df['date']).year
         df['year'] = df['year'].astype(str)
-
-        # geometry = []
-        # for x in df['geometry']:
-        #     if isinstance(x, str):
-        #         geometry.append(wkt.loads(x))
-        #     else:
-        #         geometry.append(None)
-
-        # geometry = []
-        # for y, x in zip(df['lat'].values, df['lon'].values):
-        #     geometry.append(f"{y} {x}")
-        #     # if isinstance(y, str):
-        # df['geometry'] = geometry
 
         # geo_df = gpd.GeoDataFrame(df, crs=crs, geometry=geometry)
         crs = {'init': f'epsg:{epsg}'}  # http://www.spatialreference.org/ref/epsg/2263/
@@ -97,9 +82,9 @@ def open_battle_file(filepath):
     for col in df.columns:
         if col.startswith('Unnamed'):
             del df[col]
-    df['displaydate'] = pd.to_datetime(df['displaydate'])
-    df['displaystart'] = pd.to_datetime(df['displaystart'])
-    df['displayend'] = pd.to_datetime(df['displayend'])
+    df['displaydate'] = pd.to_datetime(df['displaydate'], format="%Y-%m-%d")
+    df['displaystart'] = pd.to_datetime(df['displaystart'], format="%Y-%m-%d")
+    df['displayend'] = pd.to_datetime(df['displayend'], format="%Y-%m-%d")
     df['year'] = pd.DatetimeIndex(df['displaydate']).year
     df['year'] = df['year'].astype(str)
 
@@ -366,24 +351,21 @@ page_slider = st.slider(
 df_page = filtered_df.iloc[page_slider:page_slider + 50]
 
 def convert(row, col, text):
-    #print(row)
-    return '<a href="{}">{}</a>'.format(row[col],  text)
+    # print(text)
+    data = row[col]
+    if isinstance(data, str):
+        return '<a href="{}">{}</a>'.format(data,  text)
+    else:
+        return 'No link available'
 
 df_page['article_link'] = df_page.apply(convert, args=('article_link', 'View Article'), axis=1)
 df_page['wikidata_link'] = df_page.apply(convert, args=('wikidata_link', 'View Wikidata'), axis=1)
+# pd.DatetimeIndex(df.Date_Col).strftime("%Y-%m-%d")
+df_page['date'] = pd.DatetimeIndex(df_page['date']).strftime("%Y-%m-%d")
 
 df_page = df_page.fillna('No Data Available')
 df_page = df_page[['newspaper', 'date', 'lang', 'left_context', 'mention', 'right_context',
             'article_link', 'wikidata_link']]
-
-fmt = "%Y-%m-%d"
-# df_page = df_page.style.format(
-#     {
-#         "date": lambda t: t.strftime(fmt),
-#         # "b": lambda t: datetime.fromtimestamp(t).strftime(fmt),
-#     }
-# )
-# st.dataframe(styler)
 
 header_values = df_page.columns
 cell_values = [df_page['newspaper'], df_page['date'], df_page['lang'], df_page['left_context'], df_page['mention'],
