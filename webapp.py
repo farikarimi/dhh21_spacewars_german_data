@@ -136,7 +136,7 @@ dic_lg = {
     "French": 'fr'
 }
 
-
+st.sidebar.title('Options')
 lg_select = st.sidebar.multiselect('Select language(s):',
                                    # ['de', 'fi', 'fr'],
                                    #  ['de', 'fi', 'fr']
@@ -282,7 +282,7 @@ map_df = groupby_data.first()
 ##  Plotting
 fig = px.scatter_mapbox(map_df, lat='lat', lon='lon', #data and col. to use for plotting
                         hover_name = 'mention',
-                        hover_data = ['freq', 'wikidata_link'],
+                        hover_data = ['freq'],
                           size = 'freq', # sets the size of each points on the values in the frequencies col.
                         # animation_frame = 'year',
                         center = dict(lat=53, lon=16), #centers the map on specific coordinates
@@ -316,6 +316,7 @@ fig.add_trace(go.Scattermapbox(
         # hoverinfo='text'
     ))
 
+st.header('War map')
 map_style = st.selectbox('Choose a map style:',
                                  # these a free maps that do not require a mapbox token
                          ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain",
@@ -376,6 +377,7 @@ def get_window(text, window, left=True):
     else:
         return ""
 
+st.header('Context visualizer')
 page_slider = st.slider(
     'Select entities mention',
     0, len(filtered_df), 50
