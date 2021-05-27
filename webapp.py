@@ -6,7 +6,27 @@ import plotly.express as px
 import numpy as np
 from shapely import wkt
 import contextily as ctx
+from glob import glob
+
 epsg = 4326
+
+def get_battle_hover_text(battles):
+    """
+    Prepare column of text for hover
+    """
+ #   subject, label, coordinates, LOClabel, location, country, displaydate, displaystart, displayend, Duration, Notes
+    list_hover = []
+    for index, line in battles.iterrows():
+        # print(line)
+        label = line['label']
+        start, end = line['displaystart'], line['displayend']
+        duration = line['Duration']
+        front = line['Notes']
+        # print(line['label'])
+        txt = f"{label}<br>{start} - {end}<br>Duration (days): {duration}<br>Warfront : {front}"
+        list_hover.append(txt)
+    battles['txthover'] = list_hover
+    return battles
 
 
 @st.cache(allow_output_mutation=True)
@@ -106,25 +126,8 @@ mapbox_token = '.mapbox_token'
 px.set_mapbox_access_token(open(mapbox_token).read())
 
 
-geo_df = open_file('data/combined_data_arbeiter_zeitung_1915.csv')
+# geo_df = open_file('data/combined_data_arbeiter_zeitung_1915.csv')
 
-def get_battle_hover_text(battles):
-    """
-    Prepare column of text for hover
-    """
- #   subject, label, coordinates, LOClabel, location, country, displaydate, displaystart, displayend, Duration, Notes
-    list_hover = []
-    for index, line in battles.iterrows():
-        # print(line)
-        label = line['label']
-        start, end = line['displaystart'], line['displayend']
-        duration = line['Duration']
-        front = line['Notes']
-        # print(line['label'])
-        txt = f"{label}<br>{start} - {end}<br>Duration (days): {duration}<br>Warfront : {front}"
-        list_hover.append(txt)
-    battles['txthover'] = list_hover
-    return battles
 
 
 
@@ -132,6 +135,7 @@ battles = open_battle_file('data/Wikibattles.csv')
 battles = prepare_dataset(battles)
 battles = get_battle_hover_text(battles)
 
+all_files = glob('data/combined_data_csvs/**/*.csv', recursive=True)
 ## Preparing the data
 # geo_df = prepare_dataset(geo_df)
 
@@ -140,19 +144,74 @@ st.sidebar.title('DHH21 Space Wars')
 st.sidebar.markdown('Prototype map: Named Entities from the **1915** issues of the **Arbeiter-Zeitung**')
 # st.sidebar.text('The textual information can be shown here.')
 
+dic_lg = {
+    "German": 'de',
+    "Finnish": 'fi',
+    "French": 'fr'
+}
+print(dic_lg.keys())
 lg_select = st.sidebar.multiselect('Select language(s):',
-                                   geo_df['lang'].unique().tolist(),
-                                    geo_df['lang'].unique().tolist()
+                                   # ['de', 'fi', 'fr'],
+                                   #  ['de', 'fi', 'fr']
+                                    list(dic_lg.keys()),
+                                   list(dic_lg.keys())
+
                                    )
 
-filtered_df = geo_df[geo_df['lang'].isin(lg_select)]
 
+dic_news = {
+    "Arbeiter Zeitung":'arbeiter_zeitung',
+    "Helsingin Sanomat": 'helsingin_sanomat',
+    "Illustrierte Kronen Zeitung": 'illustrierte_kronen_zeitung',
+    "Le Matin": 'le_matin',
+    "L'Oeuvre": 'l_oeuvre',
+    "Neue Freie Presse": 'neue_freie_presse'
+}
 ## TODO: Make sure that if we select fr, only the French newspapers appear, and vice-versa
 newspapers_select = st.sidebar.multiselect('Select newspaper(s):',
-                                         geo_df['newspaper'].unique().tolist(),
-                                         geo_df['newspaper'].unique().tolist(),
+                                         # ['arbeiter_zeitung', 'helsingin_sanomat', 'illustrierte_kronen_zeitung', 'le_matin', 'l_oeuvre', 'neue_freie_presse'],
+                                         # ['arbeiter_zeitung', 'helsingin_sanomat', 'le_matin', ],
+                                           list(dic_news.keys()),
+                                           list(dic_news.keys())
 
                                          )
+
+year_select = st.sidebar.multiselect('Select year(s):',
+                                         ['1913', '1914', '1915', '1916', '1917', '1918', '1919', '1920'],
+                                         ['1914', '1915', '1916', '1917', '1918'],
+
+                                         )
+
+@st.cache
+def filter_files(all_files):
+    filter1 = []
+    for lge in [dic_lg[lg] for lg in lg_select]:
+        for file in all_files:
+            if lge in file:
+                filter1.append(file)
+
+    filter2 = []
+    for news in [dic_news[news] for news in newspapers_select]:
+        for file in filter1:
+            if news in file:
+                filter2.append(file)
+
+    filter3 = []
+    for year in year_select:
+        for file in filter2:
+            if year in file:
+                filter3.append(file)
+
+    return filter3
+
+filtered_files = filter_files(all_files)
+
+l_df = []
+for file in filtered_files:
+    df = open_file(file)
+    l_df.append(df)
+geo_df = pd.concat(l_df).reset_index()
+
 
 start_date = st.sidebar.date_input('Start date', geo_df['date'].iloc[0],
                            min_value = geo_df['date'].iloc[0],
@@ -162,16 +221,21 @@ end_date = st.sidebar.date_input('End date', geo_df['date'].iloc[-1],
                            min_value = geo_df['date'].iloc[0],
                            max_value = geo_df['date'].iloc[-1])
 
-map_style = st.sidebar.selectbox('Choose a map style:',
-                                 # these a free maps that do not require a mapbox token
-                         ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain",
-                          "stamen-toner", "stamen-watercolor", 'white-bg'])
+# map_style = st.sidebar.selectbox('Choose a map style:',
+#                                  # these a free maps that do not require a mapbox token
+#                          ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain",
+#                           "stamen-toner", "stamen-watercolor", 'white-bg'])
+#
+filtered_df = geo_df[
 
-
-filtered_df = filtered_df[
-    (filtered_df['date'] >= np.datetime64(start_date))
-    & (filtered_df['date'] <= np.datetime64(end_date))
+    (geo_df['date'] >= np.datetime64(start_date))
+    & (geo_df['date'] <= np.datetime64(end_date))
 ]
+# filtered_df = filtered_df[
+
+#     (filtered_df['date'] >= np.datetime64(start_date))
+#     & (filtered_df['date'] <= np.datetime64(end_date))
+# ]
 
 filtered_battles = battles[
     (battles['displaydate'] >= np.datetime64(start_date))
@@ -183,13 +247,17 @@ filtered_battles = battles[
 ## then groups by geometry / data point
 filtered_df['freq'] = filtered_df['geometry'].map(filtered_df['geometry'].value_counts())
 
-freq_slider = st.sidebar.slider('Location frequencies',
-                                0, int(filtered_df['freq'].max()),
-                                (500, 1000)
-                                )
+
+min_freq = st.sidebar.text_input('Mininum entity occurrence:', 1)
+max_freq = st.sidebar.text_input('Maximum entity occurrence:', int(filtered_df['freq'].max()))
+
+# freq_slider = st.sidebar.slider('Location frequencies',
+#                                 0, int(filtered_df['freq'].max()),
+#                                 (500, 1000)
+#                                 )
 filtered_df = filtered_df[
-    (filtered_df['freq'] >= freq_slider[0])
-    & (filtered_df['freq'] <= freq_slider[1])
+    (filtered_df['freq'] >= int(min_freq))
+    & (filtered_df['freq'] <= int(max_freq))
 ]
 
 duration_slider = st.sidebar.slider('Battle duration:',
@@ -227,14 +295,10 @@ map_df = groupby_data.first()
 fig = px.scatter_mapbox(map_df, lat='lat', lon='lon', #data and col. to use for plotting
                         hover_name = 'mention',
                         hover_data = ['freq', 'wikidata_link'],
-                        # hover_data = ['mention'],
-                        # labels = 'mention',
-                        size = 'freq', # sets the size of each points on the values in the frequencies col.
-                        # title = ''
-                        animation_frame = 'year',
-                        mapbox_style = map_style, # mapstyle used
-                        center = dict(lat=49, lon=16), #centers the map on specific coordinates
-                        zoom = 4, # zooms on these coordinates
+                          size = 'freq', # sets the size of each points on the values in the frequencies col.
+                        # animation_frame = 'year',
+                        center = dict(lat=53, lon=16), #centers the map on specific coordinates
+                        zoom = 3, # zooms on these coordinates
                         width=1000, height=700, # width and height of the plot
                         )
 
@@ -244,13 +308,9 @@ fig.add_trace(go.Scattermapbox(
         lat=filtered_battles['lat'],
         lon=filtered_battles['lon'],
         mode='markers',
-        # hovertemplate= 'Name %{LOClabel}',
-        # fillcolor = 'duration',
-        # hoverinfo = 'all',
-        # hoverinfosrc = ['all']
         hovertext = filtered_battles['txthover'],
         marker=go.scattermapbox.Marker(
-            size=10,
+            size=13,
             # color='rgb(255, 0, 0)',
             color= filtered_battles['Duration'],
             showscale = True,
@@ -262,10 +322,22 @@ fig.add_trace(go.Scattermapbox(
     ))# if we want to use other map style that are not provided by Mapbox or Plotly,
 # we need to specify the path ourselves. It has to be done by updating the layout apparently
 # https://holypython.com/how-to-create-map-charts-in-python-w-plotly-mapbox/
+map_style = st.selectbox('Choose a map style:',
+                                 # these a free maps that do not require a mapbox token
+                         ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain",
+                          "stamen-toner", "stamen-watercolor", 'white-bg'])
+
+
 fig.update_layout(
-    margin = dict(l=0)
-#     mapbox_style = map_style,
-#     mapbox_layers=[
+    margin = dict(l=0),
+    mapbox_style = map_style,
+    # legend={
+    #     "title": "Sepal Length (cm)",
+    #     # "sepal_width": "Sepal Width (cm)",
+    #     # "species": "Species of Iris"
+    # },
+
+    #     mapbox_layers=[
 #         {
 #             "below": 'traces',
 #             "sourcetype": "raster",
@@ -288,11 +360,11 @@ page_slider = st.slider(
 )
 # mention_id,mention,start_idx,end_idx,left_context,right_context,article_id,issue_id,article_link,newspaper,date,lang,wikidata_link,address,geometry,lat,lon
 df_page = filtered_df.iloc[page_slider:page_slider + 50]
-df_page = df_page[['newspaper', 'date', 'left_context', 'mention', 'right_context', 'article_link','wikidata_link']]
+# df_page = df_page[['newspaper', 'date', 'lang', 'left_context', 'mention', 'right_context', 'article_link','wikidata_link']]
 
 df_page = df_page.fillna('No Data Available')
 header_values = df_page.columns
-cell_values = [df_page['newspaper'], df_page['date'], df_page['left_context'], df_page['mention'],
+cell_values = [df_page['newspaper'], df_page['date'], df_page['lang'], df_page['left_context'], df_page['mention'],
                           df_page['right_context'], df_page['article_link'],df_page['wikidata_link']]
 table = go.Figure(
     data=[
