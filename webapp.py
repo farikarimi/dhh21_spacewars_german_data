@@ -137,8 +137,7 @@ dic_lg = {
 }
 
 
-print(dic_lg.keys())
-lg_select = st.multiselect('Select language(s):',
+lg_select = st.sidebar.multiselect('Select language(s):',
                                    # ['de', 'fi', 'fr'],
                                    #  ['de', 'fi', 'fr']
                                     list(dic_lg.keys()),
@@ -156,7 +155,7 @@ dic_news = {
     "Neue Freie Presse": 'neue_freie_presse'
 }
 ## TODO: Make sure that if we select fr, only the French newspapers appear, and vice-versa
-newspapers_select = st.multiselect('Select newspaper(s):',
+newspapers_select = st.sidebar.multiselect('Select newspaper(s):',
                                          # ['arbeiter_zeitung', 'helsingin_sanomat', 'illustrierte_kronen_zeitung', 'le_matin', 'l_oeuvre', 'neue_freie_presse'],
                                          # ['arbeiter_zeitung', 'helsingin_sanomat', 'le_matin', ],
                                            list(dic_news.keys()),
@@ -165,7 +164,7 @@ newspapers_select = st.multiselect('Select newspaper(s):',
 
                                          )
 
-year_select = st.multiselect('Select year(s):',
+year_select = st.sidebar.multiselect('Select year(s):',
                                          ['1913', '1914', '1915', '1916', '1917', '1918', '1919', '1920'],
                                          ['1914', '1915', '1916', '1917', '1918'],
 
@@ -202,11 +201,11 @@ for file in filtered_files:
 geo_df = pd.concat(l_df).reset_index()
 
 
-start_date = st.date_input('Start date', geo_df['date'].iloc[0],
+start_date = st.sidebar.date_input('Start date', geo_df['date'].iloc[0],
                            min_value = geo_df['date'].iloc[0],
                            max_value = geo_df['date'].iloc[-1])
 
-end_date = st.date_input('End date', geo_df['date'].iloc[-1],
+end_date = st.sidebar.date_input('End date', geo_df['date'].iloc[-1],
                            min_value = geo_df['date'].iloc[0],
                            max_value = geo_df['date'].iloc[-1])
 
@@ -237,8 +236,8 @@ filtered_battles = battles[
 filtered_df['freq'] = filtered_df['geometry'].map(filtered_df['geometry'].value_counts())
 
 
-min_freq = st.text_input('Mininum entity occurrence:', 1)
-max_freq = st.text_input('Maximum entity occurrence:', int(filtered_df['freq'].max()))
+min_freq = st.sidebar.text_input('Mininum entity occurrence:', 1)
+max_freq = st.sidebar.text_input('Maximum entity occurrence:', int(filtered_df['freq'].max()))
 
 # freq_slider = st.slider('Location frequencies',
 #                                 0, int(filtered_df['freq'].max()),
@@ -249,7 +248,7 @@ filtered_df = filtered_df[
     & (filtered_df['freq'] <= int(max_freq))
 ]
 
-duration_slider = st.slider('Battle duration:',
+duration_slider = st.sidebar.slider('Battle duration:',
                                     int(filtered_battles['Duration'].min()),
                                     int(filtered_battles['Duration'].max()),
                                     (
@@ -266,7 +265,7 @@ filtered_battles = filtered_battles[
 
 ]
 
-front_selection = st.multiselect('Select battle front(s):',
+front_selection = st.sidebar.multiselect('Select battle front(s):',
                                          filtered_battles['Notes'].unique().tolist(),
                                          filtered_battles['Notes'].unique().tolist(),
 
@@ -399,7 +398,7 @@ cell_values = [df_page['newspaper'], df_page['date'], df_page['lang'], df_page['
 table = go.Figure(
     data=[
         go.Table(
-            columnwidth=[100, 100, 100, 100, 100, 100, 100, 100] ,
+            columnwidth=[80, 60, 100, 100, 100, 100, 80, 80] ,
             header = dict(
                 values= df_page.columns,
                 # fill_color="paleturquoise",
@@ -417,7 +416,7 @@ table = go.Figure(
 )
 table.update_layout(
     autosize=False,
-    width=1500,
+    width=1000,
     height=1000,
     margin=dict(l=0, r=0),
 
