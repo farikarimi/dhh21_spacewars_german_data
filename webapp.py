@@ -342,6 +342,8 @@ fig.update_layout(
 
 st.plotly_chart(fig)
 
+
+
 ##################### PAGE LAYOUT #################
 def get_window(text, window, left=True):
     """
@@ -362,6 +364,7 @@ page_slider = st.slider(
     'Select entities mention',
     0, len(filtered_df), 50
 )
+window_slider = st.slider('Select context window', 1, 10, 5)
 
 df_page = filtered_df.iloc[page_slider:page_slider + 50]
 
@@ -376,9 +379,9 @@ def convert(row, col, text):
 df_page['article_link'] = df_page.apply(convert, args=('article_link', 'View Article'), axis=1)
 df_page['wikidata_link'] = df_page.apply(convert, args=('wikidata_link', 'View Wikidata'), axis=1)
 df_page['date'] = pd.DatetimeIndex(df_page['date']).strftime("%Y-%m-%d")
-word_window = 5
-df_page['left_context'] = df_page['left_context'].apply(lambda x: get_window(x, word_window))
-df_page['right_context'] = df_page['right_context'].apply(lambda x: get_window(x, word_window, left=False))
+df_page['context_word_window'] = window_slider
+df_page['left_context'] = df_page['left_context'].apply(lambda x: get_window(x, window_slider))
+df_page['right_context'] = df_page['right_context'].apply(lambda x: get_window(x, window_slider, left=False))
 
 reversed_lg = {
     'de': "German",
@@ -387,18 +390,18 @@ reversed_lg = {
 }
 df_page['lang'] = df_page['lang'].apply(lambda x: reversed_lg[x])
 # df_page = df_page.fillna('No Data Available')
-df_page = df_page[['newspaper', 'date', 'lang', 'left_context', 'mention', 'right_context',
+df_page = df_page[['newspaper', 'date', 'lang', 'context_word_window','left_context', 'mention', 'right_context',
             'article_link', 'wikidata_link']]
 
 header_values = df_page.columns
-cell_values = [df_page['newspaper'], df_page['date'], df_page['lang'], df_page['left_context'], df_page['mention'],
+cell_values = [df_page['newspaper'], df_page['date'], df_page['lang'], df_page['context_word_window'], df_page['left_context'], df_page['mention'],
                           df_page['right_context'], df_page['article_link'], df_page['wikidata_link']]
 
 
 table = go.Figure(
     data=[
         go.Table(
-            columnwidth=[80, 60, 100, 100, 100, 100, 80, 80] ,
+            columnwidth=[80, 60, 100, 40, 100, 100, 100, 80, 80] ,
             header = dict(
                 values= df_page.columns,
                 # fill_color="paleturquoise",
@@ -416,7 +419,7 @@ table = go.Figure(
 )
 table.update_layout(
     autosize=False,
-    width=1000,
+    width=1100,
     height=1000,
     margin=dict(l=0, r=0),
 
