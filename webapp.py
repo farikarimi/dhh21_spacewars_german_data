@@ -6,10 +6,9 @@ import plotly.express as px
 import numpy as np
 from shapely import wkt
 import contextily as ctx
-
 epsg = 4326
 
-@st.cache
+@st.cache(allow_output_mutation=True)
 def prepare_dataset(geodf):
     """
     Adds a lat and a lon column to the GeoDF to be used
@@ -39,6 +38,8 @@ def open_file(filepath):
             if col.startswith('Unnamed'):
                 del df[col]
         df['date'] = pd.to_datetime(df['date'])
+        df['year'] = pd.DatetimeIndex(df['date']).year
+        df['year'] = df['year'].astype(str)
 
         # geometry = []
         # for x in df['geometry']:
@@ -47,14 +48,12 @@ def open_file(filepath):
         #     else:
         #         geometry.append(None)
 
-        geometry = []
-        for y, x in zip(df['lat'].values, df['lon'].values):
-            geometry.append(f"{y} {x}")
-            # if isinstance(y, str):
-        df['geometry'] = geometry
+        # geometry = []
+        # for y, x in zip(df['lat'].values, df['lon'].values):
+        #     geometry.append(f"{y} {x}")
+        #     # if isinstance(y, str):
+        # df['geometry'] = geometry
 
-        # 2263
-        # crs = {'init': f'epsg:{epsg}'}  # http://www.spatialreference.org/ref/epsg/2263/
         # geo_df = gpd.GeoDataFrame(df, crs=crs, geometry=geometry)
         crs = {'init': f'epsg:{epsg}'}  # http://www.spatialreference.org/ref/epsg/2263/
         geo_df = gpd.GeoDataFrame(df, crs=crs)
@@ -77,6 +76,8 @@ def open_battle_file(filepath):
     df['displaydate'] = pd.to_datetime(df['displaydate'])
     df['displaystart'] = pd.to_datetime(df['displaystart'])
     df['displayend'] = pd.to_datetime(df['displayend'])
+    df['year'] = pd.DatetimeIndex(df['displaydate']).year
+    df['year'] = df['year'].astype(str)
 
     df['coordinates'] = df['coordinates'].str.replace('\(\(', '(')
     df['coordinates'] = df['coordinates'].str.replace('\)\)', ')')
@@ -107,23 +108,19 @@ px.set_mapbox_access_token(open(mapbox_token).read())
 
 # az_1915_places = geopandas.read_file(gj_file)
 # geo_df = open_file('data/arbeiter_zeitung_1915_enriched.csv')
-geo_df = open_file('data/pandas_az_1915.csv')
-battles = open_battle_file('data/WestFront.csv')
+geo_df = open_file('data/combined_data_arbeiter_zeitung_1915.csv')
+battles = open_battle_file('data/Wikibattles.csv')
 battles = prepare_dataset(battles)
-print(battles)
+# print(geo_df)
 ## Preparing the data
 # geo_df = prepare_dataset(geo_df)
-
-# geoborders = open_file('data/borders_1914/b    text=locations_name,orders1914.json')
-
-
 
 ## Sidebar Layout
 st.sidebar.title('DHH21 Space Wars')
 st.sidebar.markdown('Prototype map: Named Entities from the **1915** issues of the **Arbeiter-Zeitung**')
 # st.sidebar.text('The textual information can be shown here.')
 
-lg_select = st.sidebar.multiselect('Choose a language:',
+lg_select = st.sidebar.multiselect('Select language(s):',
                                    geo_df['lang'].unique().tolist(),
                                     geo_df['lang'].unique().tolist()
                                    )
@@ -131,20 +128,11 @@ lg_select = st.sidebar.multiselect('Choose a language:',
 filtered_df = geo_df[geo_df['lang'].isin(lg_select)]
 
 ## TODO: Make sure that if we select fr, only the French newspapers appear, and vice-versa
-newspapers_select = st.sidebar.selectbox('Choose a newspapers:',
-                                         ['XXX', 'XXX']
+newspapers_select = st.sidebar.multiselect('Select newspaper(s):',
+                                         geo_df['newspaper'].unique().tolist(),
+                                         geo_df['newspaper'].unique().tolist(),
+
                                          )
-
-
-# ## TODO: Make sure that if we select fr, only the French newspapers appear, and vice-versa
-# entity_select = st.sidebar.multiselect('Choose a location:',
-#                                      geo_df['mention'].unique().tolist(),
-#                                      geo_df['mention'].unique().tolist()
-#                                      )
-
-
-# entry_slider = st.sidebar.slider('Number of entities selected', 0, len(geo_df), 2000)
-# filtered_df = geo_df.iloc[:entry_slider]
 
 start_date = st.sidebar.date_input('Start date', geo_df['date'].iloc[0],
                            min_value = geo_df['date'].iloc[0],
@@ -164,8 +152,11 @@ filtered_df = filtered_df[
     (filtered_df['date'] >= np.datetime64(start_date))
     & (filtered_df['date'] <= np.datetime64(end_date))
 ]
-# print(px.data.gapminder()['year'])
-filtered_df['year'] = pd.DatetimeIndex(filtered_df['date']).year
+
+filtered_battles = battles[
+    (battles['displaydate'] >= np.datetime64(start_date))
+    & (battles['displaydate'] <= np.datetime64(end_date))
+]
 
 ## calculating frequency on the fly
 ## maps the value of the column geometry with their value counts
@@ -176,22 +167,10 @@ freq_slider = st.sidebar.slider('Location frequencies',
                                 0, int(filtered_df['freq'].max()),
                                 (500, 1000)
                                 )
-# print(freq_slider)
 filtered_df = filtered_df[
     (filtered_df['freq'] >= freq_slider[0])
     & (filtered_df['freq'] <= freq_slider[1])
 ]
-# start_freq_slider, end_freq_slider = st.sidebar.select_slider('Frequency range',
-#                                                               filtered_df['freq'].unique().tolist(),
-#                                                               )
-
-## THIS IS DUMMY DATA TO TEST ANIMATION YEAR OPTION
-# filtered_df.loc[300: 500 , 'year'] = 1916
-# filtered_df.loc[501: 800 , 'year'] = 1917
-# filtered_df.loc[801:  , 'year'] = 1918
-## for some reason, the value for animation frame must be str...
-filtered_df['year'] = filtered_df['year'].astype(str)
-# filtered_df.to_csv('filtered.csv')
 
 groupby_data = filtered_df.groupby('geometry')
 map_df = groupby_data.first()
@@ -213,11 +192,16 @@ fig = px.scatter_mapbox(map_df, lat='lat', lon='lon', #data and col. to use for 
                         width=1000, height=700, # width and height of the plot
                         )
 
+# subject,label,coordinates,LOClabel,location,country,displaydate,displaystart,displayend,Duration,
 
 fig.add_trace(go.Scattermapbox(
-        lat=battles['lat'],
-        lon=battles['lon'],
+        lat=filtered_battles['lat'],
+        lon=filtered_battles['lon'],
         mode='markers',
+        hovertemplate= 'Name %{LOClabel}'
+        # hoverinfo = 'all',
+        # hoverinfosrc = ['all']
+        # hovertext = filtered_battles['LOClabel']
         # marker=go.scattermapbox.Marker(
         #     size=17,
         #     color='rgb(255, 0, 0)',
@@ -250,9 +234,9 @@ page_slider = st.slider(
     'Select entities mention',
     0, len(geo_df), 50
 )
-# ,mention_id,mention,start_idx,end_idx,,,article_id,issue_id,date,lang,wikidata_link,address,lat,lon
+# mention_id,mention,start_idx,end_idx,left_context,right_context,article_id,issue_id,article_link,newspaper,date,lang,wikidata_link,address,geometry,lat,lon
 df_page = filtered_df.iloc[page_slider:page_slider + 50]
-st.write(df_page[['article_id', 'wikidata_link','date', 'left_context', 'mention', 'right_context']])
+st.write(df_page[['newspaper', 'date', 'left_context', 'mention', 'right_context', 'article_link','wikidata_link',]])
 # #
 # print(geoborders)
 #
