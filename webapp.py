@@ -290,8 +290,16 @@ fig = px.scatter_mapbox(map_df, lat='lat', lon='lon', #data and col. to use for 
                         width=1000, height=700, # width and height of the plot
                         )
 
-# subject,label,coordinates,LOClabel,location,country,displaydate,displaystart,displayend,Duration,
+fig['data'][0]['showlegend']=True
+fig['data'][0]['name']='Named Entity frequencies'
+fig['data'][0]['legendgroup']= 'Frequencies'
 
+# print(fig['data'][0])
+#
+
+
+# subject,label,coordinates,LOClabel,location,country,displaydate,displaystart,displayend,Duration,
+#
 fig.add_trace(go.Scattermapbox(
         lat=filtered_battles['lat'],
         lon=filtered_battles['lon'],
@@ -305,25 +313,32 @@ fig.add_trace(go.Scattermapbox(
             colorscale='Blackbody',
             opacity=0.7
         ),
-        # text=locations_name,
         # hoverinfo='text'
-    ))# if we want to use other map style that are not provided by Mapbox or Plotly,
-# we need to specify the path ourselves. It has to be done by updating the layout apparently
-# https://holypython.com/how-to-create-map-charts-in-python-w-plotly-mapbox/
+    ))
+
 map_style = st.selectbox('Choose a map style:',
                                  # these a free maps that do not require a mapbox token
                          ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain",
-                          "stamen-toner", "stamen-watercolor", 'white-bg'])
+                          "stamen-toner", "stamen-watercolor",
+                          # 'white-bg'
+                          ])
 
 
 fig.update_layout(
     margin = dict(l=0),
     mapbox_style = map_style,
-    # legend={
-    #     "title": "Sepal Length (cm)",
-    #     # "sepal_width": "Sepal Width (cm)",
-    #     # "species": "Species of Iris"
-    # },
+    legend=dict(
+    bgcolor='ivory',
+    bordercolor='lightgray',
+    borderwidth=1,
+    font = dict(color='black'),
+    yanchor="top",
+    y=0.99,
+    xanchor="left",
+    x=0.01)
+)
+fig['data'][1]['name'] = 'Battle duration'
+
 
     #     mapbox_layers=[
 #         {
@@ -336,7 +351,8 @@ fig.update_layout(
 #             ]
 #         }
 #       ]
-)
+# )
+# fig.update_layout()
 
 # col1,col2 = st.beta_columns(2)
 
@@ -401,7 +417,7 @@ cell_values = [df_page['newspaper'], df_page['date'], df_page['lang'], df_page['
 table = go.Figure(
     data=[
         go.Table(
-            columnwidth=[80, 60, 100, 40, 100, 100, 100, 80, 80] ,
+            columnwidth=[80, 60, 40, 100, 100, 100, 100, 80, 80] ,
             header = dict(
                 values= df_page.columns,
                 # fill_color="paleturquoise",
