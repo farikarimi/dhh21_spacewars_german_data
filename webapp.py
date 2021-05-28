@@ -123,7 +123,9 @@ battles = open_battle_file('data/Wikibattles.csv')
 battles = prepare_dataset(battles)
 battles = get_battle_hover_text(battles)
 
-all_files = glob('data/combined_data_csvs/**/*.csv', recursive=True)
+# DATASET_PATH = 'data/combined_data_csvs'
+DATASET_PATH = 'data/DATASET'
+all_files = glob(f'{DATASET_PATH}/**/*.csv', recursive=True)
 ## Preparing the data
 # geo_df = prepare_dataset(geo_df)
 
@@ -152,7 +154,7 @@ dic_news = {
     "Illustrierte Kronen Zeitung": 'illustrierte_kronen_zeitung',
     "Le Matin": 'le_matin',
     "L'Oeuvre": 'l_oeuvre',
-    "Neue Freie Presse": 'neue_freie_presse'
+    # "Neue Freie Presse": 'neue_freie_presse'
 }
 ## TODO: Make sure that if we select fr, only the French newspapers appear, and vice-versa
 newspapers_select = st.sidebar.multiselect('Select newspaper(s):',
@@ -199,21 +201,21 @@ for file in filtered_files:
     df = open_file(file)
     l_df.append(df)
 geo_df = pd.concat(l_df).reset_index()
+# print(geo_df.info())
+
+start_date = st.sidebar.date_input('Start date', geo_df['date'].min(),
+                           # min_value = geo_df['date'].iloc[0],
+                           # max_value = geo_df['date'].iloc[-1]
+                                   min_value=geo_df['date'].min(),
+                                   max_value=geo_df['date'].max()
+                                   )
+
+end_date = st.sidebar.date_input('End date', geo_df['date'].max(),
+                           min_value = geo_df['date'].min(),
+                           max_value = geo_df['date'].max()
+                                 )
 
 
-start_date = st.sidebar.date_input('Start date', geo_df['date'].iloc[0],
-                           min_value = geo_df['date'].iloc[0],
-                           max_value = geo_df['date'].iloc[-1])
-
-end_date = st.sidebar.date_input('End date', geo_df['date'].iloc[-1],
-                           min_value = geo_df['date'].iloc[0],
-                           max_value = geo_df['date'].iloc[-1])
-
-# map_style = st.selectbox('Choose a map style:',
-#                                  # these a free maps that do not require a mapbox token
-#                          ["open-street-map", "carto-positron", "carto-darkmatter", "stamen-terrain",
-#                           "stamen-toner", "stamen-watercolor", 'white-bg'])
-#
 filtered_df = geo_df[
 
     (geo_df['date'] >= np.datetime64(start_date))
@@ -247,37 +249,36 @@ filtered_df = filtered_df[
     (filtered_df['freq'] >= int(min_freq))
     & (filtered_df['freq'] <= int(max_freq))
 ]
-
-duration_slider = st.sidebar.slider('Battle duration:',
-                                    int(filtered_battles['Duration'].min()),
-                                    int(filtered_battles['Duration'].max()),
-                                    (
+if not filtered_battles.empty:
+    duration_slider = st.sidebar.slider('Battle duration:',
                                         int(filtered_battles['Duration'].min()),
                                         int(filtered_battles['Duration'].max()),
+                                        (
+                                            int(filtered_battles['Duration'].min()),
+                                            int(filtered_battles['Duration'].max()),
 
-                                    )
+                                        )
 
-                                    )
+                                        )
 
-filtered_battles = filtered_battles[
-    (filtered_battles['Duration'] >= duration_slider[0])
-    & (filtered_battles['Duration'] <= duration_slider[1])
+    filtered_battles = filtered_battles[
+        (filtered_battles['Duration'] >= duration_slider[0])
+        & (filtered_battles['Duration'] <= duration_slider[1])
 
-]
+    ]
 
-front_selection = st.sidebar.multiselect('Select battle front(s):',
-                                         filtered_battles['Notes'].unique().tolist(),
-                                         filtered_battles['Notes'].unique().tolist(),
+    front_selection = st.sidebar.multiselect('Select battle front(s):',
+                                             filtered_battles['Notes'].unique().tolist(),
+                                             filtered_battles['Notes'].unique().tolist(),
 
-                                         )
+                                             )
 
-filtered_battles = filtered_battles[filtered_battles['Notes'].isin(front_selection)]
+    filtered_battles = filtered_battles[filtered_battles['Notes'].isin(front_selection)]
 
 
 groupby_data = filtered_df.groupby('geometry')
 map_df = groupby_data.first()
 
-# map_df.to_csv('test.csv')
 
 ##  Plotting
 fig = px.scatter_mapbox(map_df, lat='lat', lon='lon', #data and col. to use for plotting
@@ -293,10 +294,6 @@ fig = px.scatter_mapbox(map_df, lat='lat', lon='lon', #data and col. to use for 
 fig['data'][0]['showlegend']=True
 fig['data'][0]['name']='Named Entity frequencies'
 fig['data'][0]['legendgroup']= 'Frequencies'
-
-# print(fig['data'][0])
-#
-
 
 # subject,label,coordinates,LOClabel,location,country,displaydate,displaystart,displayend,Duration,
 #
